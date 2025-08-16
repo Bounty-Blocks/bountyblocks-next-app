@@ -3,6 +3,7 @@
 import { useState } from "react";
 import HackerPage from "./hacker/hacker";
 import SponsorPage from "./sponsor/sponsor";
+import { SlushToggleButton, DummyTxSigner } from "./components/SlushWallet";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"hacker" | "sponsor">("hacker");
@@ -34,6 +35,7 @@ export default function Home() {
               >
                 Sponsor
               </button>
+              <SlushToggleButton />
             </div>
           </div>
         </div>
@@ -41,6 +43,9 @@ export default function Home() {
 
       <main>
         {activeTab === "hacker" ? <HackerPage /> : <SponsorPage />}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+          <DummyTxSigner />
+        </div>
       </main>
     </div>
   );

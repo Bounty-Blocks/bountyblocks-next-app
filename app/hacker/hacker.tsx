@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 // Domain models
 interface Company {
@@ -29,6 +29,7 @@ interface BugItem {
 	trackId: string;
 	title: string;
 	body: string;
+	payoutToken?: string;
 }
 
 // Dummy seed data
@@ -98,6 +99,14 @@ const INITIAL_BUGS: BugItem[] = [
 	},
 ];
 
+const TOKENS: string[] = [
+  "USDC",
+  "USDT",
+  "USDF",
+  "ETH (Wrapped)",
+  "PYUSD"
+];
+
 function classNames(...classes: Array<string | false | null | undefined>) {
 	return classes.filter(Boolean).join(" ");
 }
@@ -115,6 +124,9 @@ export default function HackerPage() {
 	const [selectedBugId, setSelectedBugId] = useState<string | null>(null);
 	const [query, setQuery] = useState<string>("");
 	const [bugs, setBugs] = useState<BugItem[]>(INITIAL_BUGS);
+	const [payoutQuery, setPayoutQuery] = useState<string>("");
+	const [isPayoutOpen, setIsPayoutOpen] = useState<boolean>(false);
+
 
 	const companyTracks = useMemo(
 		() => TRACKS.filter((t) => t.companyId === companyId),
@@ -137,6 +149,11 @@ export default function HackerPage() {
 			);
 	}, [bugs, companyId, currentTrack, query]);
 
+	const filteredTokens = useMemo(
+		() => TOKENS.filter((t) => t.toLowerCase().includes(payoutQuery.toLowerCase())),
+		[payoutQuery]
+	);
+
 	const selectedBug = useMemo(
 		() => filteredBugs.find((b) => b.id === selectedBugId) ?? null,
 		[filteredBugs, selectedBugId]
@@ -148,9 +165,9 @@ export default function HackerPage() {
 	);
 
 	return (
-		<div className="min-h-screen grid grid-cols-1 md:grid-cols-[320px_1fr]">
+		<div className="min-h-screen grid grid-cols-1 md:grid-cols-3">
 			{/* Sidebar */}
-			<aside className="border-r border-black/10 dark:border-white/10 p-4 md:p-6 flex flex-col gap-4 md:gap-6">
+			<aside className="border-r border-black/10 dark:border-white/10 p-4 md:p-6 flex flex-col gap-4 md:gap-6 md:col-span-1">
 				<div className="space-y-2">
 					<label className="text-xs font-medium text-foreground/60">Company</label>
 					<div className="relative">
@@ -249,7 +266,7 @@ export default function HackerPage() {
 			</aside>
 
 			{/* Main content */}
-			<main className="min-h-screen p-4 md:p-8">
+			<main className="min-h-screen p-4 md:p-8 md:col-span-2">
 				{mode === "track" && currentTrack && (
 					<section className="mx-auto max-w-4xl">
 						<h1 className="text-3xl md:text-4xl font-semibold tracking-tight">{currentTrack.name}</h1>
@@ -334,6 +351,7 @@ export default function HackerPage() {
 									trackId: String(fd.get("track")),
 									title: String(fd.get("title")),
 									body: String(fd.get("body")),
+									payoutToken: payoutQuery || undefined,
 								};
 								setBugs((prev) => [newBug, ...prev]);
 								setCompanyId(newBug.companyId);
@@ -370,6 +388,43 @@ export default function HackerPage() {
 							<div className="grid gap-2">
 								<label className="text-sm font-medium">Long description</label>
 								<textarea required name="body" rows={14} placeholder="Detailed reproduction steps, impact, affected components, and mitigation ideas." className="rounded-lg border border-black/10 dark:border-white/15 bg-background px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10" />
+							</div>
+
+							<div className="grid gap-2 relative">
+								<label className="text-sm font-medium">Preferred payout token</label>
+								<input
+									name="payoutToken"
+									value={payoutQuery}
+									onChange={(e) => {
+										setPayoutQuery(e.target.value);
+										setIsPayoutOpen(true);
+									}}
+									onFocus={() => setIsPayoutOpen(true)}
+									placeholder="Type to search (e.g., USDC, DAI, ETH)"
+									className="rounded-lg border border-black/10 dark:border-white/15 bg-background px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
+									autoComplete="off"
+								/>
+								{isPayoutOpen && filteredTokens.length > 0 && (
+									<div className="absolute left-0 top-full z-10 mt-1 w-full rounded-lg border border-black/10 dark:border-white/15 bg-background shadow-lg">
+										<ul className="max-h-56 overflow-auto py-1">
+											{filteredTokens.map((token) => (
+												<li key={token}>
+													<button
+														type="button"
+														className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
+														onMouseDown={(e) => {
+															e.preventDefault();
+															setPayoutQuery(token);
+															setIsPayoutOpen(false);
+														}}
+													>
+														{token}
+													</button>
+												</li>
+											))}
+										</ul>
+									</div>
+								)}
 							</div>
 
 							<div className="grid gap-2">

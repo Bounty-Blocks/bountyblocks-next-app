@@ -248,9 +248,9 @@ export default function SponsorPage() {
   );
 
   return (
-    <div className="min-h-screen w-full grid grid-cols-1 md:grid-cols-[320px_1fr]">
+    <div className="min-h-screen w-full grid grid-cols-1 md:grid-cols-3">
       {/* Sidebar */}
-      <aside className="border-r border-black/10 dark:border-white/10 p-4 md:p-6 flex flex-col gap-4 md:gap-6 bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <aside className="border-r border-black/10 dark:border-white/10 p-4 md:p-6 flex flex-col gap-4 md:gap-6 bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:col-span-1">
         <div className="flex items-center justify-between">
           <h1 className="text-base md:text-lg font-semibold">Sponsor</h1>
           <WalletButton />
@@ -370,7 +370,7 @@ export default function SponsorPage() {
       </aside>
 
       {/* Main panel */}
-      <main className="min-h-screen p-4 md:p-8">
+      <main className="min-h-screen p-4 md:p-8 md:col-span-2">
         {mode === "bug" && selectedBug && (
           <article className="mx-auto max-w-4xl">
             <header className="sticky top-0 z-10 -mx-4 md:mx-0 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/75 border-b border-black/10 dark:border-white/10 px-4 md:px-0 py-4">
