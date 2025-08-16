@@ -42,3 +42,5 @@ next-env.d.ts
 
 walrus-tools/walrus-gen-output
 walrus-tools/*.key
+walrus-tools/sui-testnet/
+walrus-tools/walrus-bin/
