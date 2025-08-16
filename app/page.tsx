@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import HackerPage from "./hacker/hacker";
 import SponsorPage from "./sponsor/sponsor";
-import { SlushToggleButton, DummyTxSigner } from "./components/SlushWallet";
+
+import * as fcl from "@onflow/fcl";
+fcl.config({
+  "discovery.wallet": "https://fcl-discovery.onflow.org/testnet/authn", // Endpoint set to Testnet
+});
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"hacker" | "sponsor">("hacker");
+
+  useEffect(() => {
+    fcl.authenticate();
+  }, []);
 
   return (
     <div className="min-h-screen w-full">
@@ -35,7 +43,7 @@ export default function Home() {
               >
                 Sponsor
               </button>
-              <SlushToggleButton />
+
             </div>
           </div>
         </div>
@@ -43,9 +51,6 @@ export default function Home() {
 
       <main>
         {activeTab === "hacker" ? <HackerPage /> : <SponsorPage />}
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-          <DummyTxSigner />
-        </div>
       </main>
     </div>
   );
