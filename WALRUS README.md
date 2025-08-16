@@ -1,7 +1,18 @@
 # Readme for walrus & sui
 
-Walrus sitebuilder command: ```/Applications/site-builder-testnet-latest-macos-arm64```
+## [Walrus wallet setup](https://docs.wal.app/usage/setup.html)
 
+1. Install sui
+2. Install walrus
+3. Create a wallet: ```./walrus generate-sui-wallet --sui-network testnet```
+      1. note: If you can add ```walrus``` to your path, do that.  Otherwise, cd into its install location and run it with ```./walrus```
+   1. Store the address outputted here
+4. Hit the sui faucet
+5. Convert it to wal ```./walrus get-wal --config client_config_testnet.yaml```
+
+/Users/theo/Projects/ETHGlobal 2025 NYC/bountyblocks-next-app/walrus-tools
+
+Walrus sitebuilder command: ```/Applications/site-builder-testnet-latest-macos-arm64```
 
 List addresses: ```sui client active-address```
 
