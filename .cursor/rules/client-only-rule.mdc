@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Do not write any API routes or server actions.
+
+In all tsx files, include the "use client" directive.
