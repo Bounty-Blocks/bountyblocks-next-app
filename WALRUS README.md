@@ -42,6 +42,25 @@ Get a walrus wallet: ```walrus get-wal```
 
 Site object ID: 0xfd3ca0c5b0bbb9a8a2edb222f946a6ff99857c2aac4b323be528f38d44e71990
 
+### Hosting/connecting to it
+
+git clone https://github.com/MystenLabs/walrus-sites.git
+cd walrus-sites
+git checkout mainnet
+
+# 2) Testnet env for the server portal
+cp ./portal/server/.env.testnet.example ./portal/server/.env.local
+
+# 3) Install bun (once), then install deps and run
+
+1. cd into the
+2. ```curl -fsSL https://bun.sh/install | bash```
+3. ```exec /bin/zsh```
+4. ```cd portal```
+5. ```bun install```
+6. ```bun run server```
+7. It should be at <http://6b7wkqfuhhlip6dx3e33pu0e8cv3hulfqrdf9svvn4fgc7imj4.localhost:3000>
+
 ### [SuiNS](https://testnet.suins.io/)
 
 Later on...
