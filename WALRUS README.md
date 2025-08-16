@@ -39,27 +39,27 @@ Get a walrus wallet: ```walrus get-wal```
 
 1. run ```npm run build```
 2. ```./walrus-bin/site-builder-testnet deploy ../out --epochs 1```
+3. It should be hosted at <http://[get-from-terminal-output].localhost:3000>.
+   - See the hosting section below
 
-Site object ID: 0xfd3ca0c5b0bbb9a8a2edb222f946a6ff99857c2aac4b323be528f38d44e71990
+## Connecting to our walrus site
 
-### Hosting/connecting to it
+### Downloading walrus-sites (It's already included in this repository at [PROJECT ROOT]/walrus-tools/walrus-sites)
 
-git clone https://github.com/MystenLabs/walrus-sites.git
-cd walrus-sites
-git checkout mainnet
+1. Clone it: ```git clone https://github.com/MystenLabs/walrus-sites.git```
+2. ```cd walrus-sites```
+3. Checkout the branch for the network your site is deployed on (mainnet or testnet): ```git checkout testnet```
+4. Use the default environment ```cp ./portal/server/.env.testnet.example ./portal/server/.env.local```
 
-# 2) Testnet env for the server portal
-cp ./portal/server/.env.testnet.example ./portal/server/.env.local
+### Building and running walrus-sites
 
-# 3) Install bun (once), then install deps and run
-
-1. cd into the
+1. cd into the walrus-sites dir
 2. ```curl -fsSL https://bun.sh/install | bash```
 3. ```exec /bin/zsh```
 4. ```cd portal```
 5. ```bun install```
 6. ```bun run server```
-7. It should be at <http://6b7wkqfuhhlip6dx3e33pu0e8cv3hulfqrdf9svvn4fgc7imj4.localhost:3000>
+
 
 ### [SuiNS](https://testnet.suins.io/)
 
