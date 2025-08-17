@@ -70,17 +70,7 @@ export async function callCadenceTransaction(transactionString: string) {
 
 export async function callCadenceTransactionWithPrepare() {
   const transactionId = await fcl.mutate({
-    cadence: `
-    transaction {
-      prepare(acct: &Account) {
-        log("Hello from prepare")
-      }
-
-	  execute {
-		log("Company created")
-	  }
-    }
-  `,
+    cadence: FLOW_COMPANY_SIGNUP_TXN,
     proposer: fcl.currentUser,
     payer: fcl.currentUser,
     authorizations: [fcl.currentUser],
@@ -91,10 +81,34 @@ export async function callCadenceTransactionWithPrepare() {
   return transaction;
 }
 
+const BOUNTY_ADDRESS = "0xfd10193274953e83";
+
 export const FLOW_COMPANY_SIGNUP_TXN = `
+import FungibleToken from "FungibleToken"
+import FlowToken from "FlowToken"
+import Bounty from "0xfd10193274953e83"
+
 transaction {
+  let payment: @{FungibleToken.Vault}
+  let company: Address
+
   prepare(signer: AuthAccount) {
-    signer.save(<- create Company(name: "My Company", description: "My Company Description"), to: /storage/company)
+    let flowVaultRef = signer.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
+      ?? panic("Missing FlowToken vault at /storage/flowTokenVault")
+
+    self.payment <- flowVaultRef.withdraw(amount: 10.0) as @{FungibleToken.Vault}
+    self.company = signer.address
+  }
+
+  execute {
+    let connector = Bounty.SinkSwapConnector(routerAddress: self.company)
+
+    Bounty.createCompanyPost(
+      policy: "Test Policy",
+      tokenVault: <- self.payment,
+      company: self.company,
+      sinkSwapConnector: connector
+    )
   }
 }
-`
+`;
