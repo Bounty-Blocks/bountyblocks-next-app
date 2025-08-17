@@ -37,7 +37,7 @@ interface BugItem {
 // Dummy seed data
 const COMPANIES: Company[] = [
   { id: "adobe", name: "Adobe" },
-  { id: "consensys", name: "ConsenSys" },
+  { id: "flow", name: "Flow" },
   { id: "aave", name: "Aave" },
 ];
 
@@ -63,14 +63,14 @@ const TRACKS: Track[] = [
       "Report vulnerabilities in web properties, excluding marketing microsites. Looking for auth bypass, IDOR, SQLi, SSRF, and logic flaws.",
   },
   {
-    id: "wallet",
-    companyId: "consensys",
-    name: "Wallet",
+    id: "flow-cli",
+    companyId: "flow",
+    name: "Flow CLI",
     poolTotalUsd: 200_000,
     awardedUsd: 92_000,
     rewardsUsd: { high: 12_000, medium: 6_000, low: 2_000, minor: 500 },
     description:
-      "Client wallet security including seed handling, transaction signing, and phishing resistance.",
+      "The Flow CLI serves as the primary command-line tool for developers to build, deploy, test, and manage Flow blockchain applications using Cadence smart contracts. Due to its central role in development workflows and its access to critical account and network configurations, any bugs or security flaws in Flow CLI can have far-reaching consequences. This tracker entry captures a comprehensive catalog of known and potential problems, as well as a forward-looking structure to manage them.  \n\nWe are also looking for misspelled commands, typos, and other issues that may be causing confusion or errors.",
   },
 ];
 
@@ -428,30 +428,21 @@ export default function HackerPage() {
                 {selectedBug.title}
               </h2>
             </header>
-            {selectedBug.unlocked ? (
-              <div className="mt-6">
+            <div className="relative mt-6">
+              <div className="filter blur-sm select-none pointer-events-none">
                 <p className="whitespace-pre-wrap leading-relaxed text-[15px] md:text-base">
-                  {selectedBug.body}
+                  {selectedBug.body.repeat(4)}
                 </p>
               </div>
-            ) : (
-              <div className="relative mt-6">
-                <div className="filter blur-sm select-none pointer-events-none">
-                  <p className="whitespace-pre-wrap leading-relaxed text-[15px] md:text-base">
-                    {selectedBug.body.repeat(4)}
+              <div className="absolute inset-0 grid place-items-center">
+                <div className="rounded-xl bg-background/90 backdrop-blur px-6 py-4 ring-1 ring-black/10 dark:ring-white/10 text-center">
+                  <p className="font-medium">Not visible to hackers</p>
+                  <p className="text-xs text-foreground/60 mt-1">
+                    Only sponsor triagers can view the full write-up.
                   </p>
                 </div>
-                <div className="absolute inset-0 grid place-items-center">
-                  <div className="rounded-xl bg-background/90 backdrop-blur px-6 py-4 ring-1 ring-black/10 dark:ring-white/10 text-center">
-                    <p className="font-medium">Long description is locked</p>
-                    <p className="text-xs text-foreground/60 mt-1">
-                      Only visible to sponsor triagers. Submit your own report to
-                      participate.
-                    </p>
-                  </div>
-                </div>
               </div>
-            )}
+            </div>
           </article>
         )}
 

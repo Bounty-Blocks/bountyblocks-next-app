@@ -53,14 +53,14 @@ interface BugItem {
 // Dummy data (replace with real data later)
 const COMPANIES: Company[] = [
   { id: "adobe", name: "Adobe" },
-  { id: "consensys", name: "ConsenSys" },
+  { id: "flow", name: "Flow" },
   { id: "aave", name: "Aave" },
 ];
 
 const TRACKS: Track[] = [
   { id: "web", companyId: "adobe", name: "Web App" },
   { id: "api", companyId: "adobe", name: "API" },
-  { id: "wallet", companyId: "consensys", name: "Wallet" },
+  { id: "flow-cli", companyId: "flow", name: "Flow CLI" },
   { id: "smart", companyId: "aave", name: "Smart Contracts" },
 ];
 
