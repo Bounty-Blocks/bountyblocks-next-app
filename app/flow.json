@@ -1,0 +1,5 @@
+{
+	"contracts": {
+		"HelloWorld": "cadence/contracts/HelloWorld.cdc"
+	}
+}

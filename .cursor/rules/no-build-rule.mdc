@@ -4,3 +4,4 @@ globs:
 alwaysApply: true
 ---
 Do not build the project.  Only make code changes.
+Do not worry too much about type errors and module resolution errors.
