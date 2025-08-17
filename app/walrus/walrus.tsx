@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { uploadBlob, downloadBlob } from "../blockchain-utils";
+import { uploadBlob, downloadBlob } from "../walrus";
 
 export default function WalrusPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

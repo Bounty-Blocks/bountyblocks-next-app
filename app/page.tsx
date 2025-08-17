@@ -4,34 +4,49 @@ import { useEffect, useState } from "react";
 import HackerPage from "./hacker/hacker";
 import SponsorPage from "./sponsor/sponsor";
 import WalrusPage from "./walrus/walrus";
-
-import * as fcl from "@onflow/fcl";
-fcl
-  .config()
-  .put("flow.network", "testnet")
-  .put("accessNode.api", "https://rest-testnet.onflow.org")
-  .put("discovery.wallet", "https://fcl-discovery.onflow.org/testnet/authn")
-  // .put("walletconnect.projectId", "YOUR_PROJECT_ID")
-  .put("app.detail.title", "Bounty Blocks")
-  .put("app.detail.icon", "https://imgur.com/a/IyN2Hvk")
-  .put("app.detail.description", "Secure, private, and transparent bug bounty platform")
-  .put("app.detail.url", "https://github.com/orgs/Bounty-Blocks")
-  .put("0xFlowToken", "0x7e60df042a9c0868");
+import {
+  fcl,
+  getAccountPublicKeys,
+  callCadenceScript,
+  callCadenceTransaction,
+  callCadenceTransactionWithPrepare,
+} from "./flow";
 
 // Narrow type for FCL current user snapshot used by this page
 type FlowUserSnapshot = {
   addr?: string | null;
   loggedIn?: boolean;
+  publicKeys?: {
+    keyId: number;
+    publicKeyHex: string;
+    signAlgo: string;
+    hashAlgo: string;
+    weight: number;
+    sequenceNumber: number;
+  }[];
 };
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"hacker" | "sponsor" | "walrus">("hacker");
+  const [activeTab, setActiveTab] = useState<"hacker" | "sponsor" | "walrus">(
+    "hacker"
+  );
   const [flowUser, setFlowUser] = useState<FlowUserSnapshot | null>(null);
 
   useEffect(() => {
-    const unsubscribe = fcl.currentUser.subscribe((user: FlowUserSnapshot | null) => {
-      setFlowUser(user);
-    });
+    const unsubscribe = fcl.currentUser.subscribe(
+      (user: FlowUserSnapshot | null) => {
+        setFlowUser(user);
+        if (user?.addr) {
+          getAccountPublicKeys(user.addr).then((keys) => {
+            console.log(keys);
+            setFlowUser((user) => ({ ...user, publicKeys: keys }));
+            callCadenceTransactionWithPrepare().then((response) => {
+              console.log(response);
+            });
+          });
+        }
+      }
+    );
     return () => unsubscribe();
   }, []);
 
