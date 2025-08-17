@@ -83,10 +83,11 @@ export async function callCadenceTransactionWithPrepare() {
 
 const BOUNTY_ADDRESS = "0xfd10193274953e83";
 
+
 export const FLOW_COMPANY_SIGNUP_TXN = `
 import FungibleToken from "FungibleToken"
 import FlowToken from "FlowToken"
-import Bounty from "0xfd10193274953e83"
+import Bounty from "Bounty"
 
 transaction {
   let payment: @{FungibleToken.Vault}
@@ -108,6 +109,35 @@ transaction {
       tokenVault: <- self.payment,
       company: self.company,
       sinkSwapConnector: connector
+    )
+  }
+}
+`;
+
+export const FLOW_HACKER_WITHDRAW_TXN = `
+import FungibleToken from "FungibleToken"
+import FlowToken from "FlowToken"
+import Bounty from "Bounty"
+
+transaction(hackerPostId: UInt64, company: Address, amountFlowToken: UFix64) {
+  let connector: Bounty.SinkSwapConnector
+  let hackerReceiver: &{FungibleToken.Receiver}
+
+  prepare(hacker: AuthAccount) {
+    let flowVaultRef = hacker.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
+      ?? panic("Missing FlowToken vault at /storage/flowTokenVault")
+    self.hackerReceiver = flowVaultRef as &{FungibleToken.Receiver}
+
+    self.connector = Bounty.SinkSwapConnector(routerAddress: company)
+  }
+
+  execute {
+    Bounty.payBounty(
+      hackerPostId: hackerPostId,
+      company: company,
+      amountFlowToken: amountFlowToken,
+      sinkSwapConnector: self.connector,
+      hackerTokenReceiver: self.hackerReceiver
     )
   }
 }
