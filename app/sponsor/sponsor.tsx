@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { uploadBlob, downloadBlob } from "../walrus";
 
 // Ethereum provider minimal types (no `any`)
 type EthereumRequestArgs = {
@@ -46,6 +47,7 @@ interface BugItem {
   rewardUsd: number;
   body: string;
   status: "reported" | "triaging" | "accepted" | "rejected";
+  unlocked?: boolean;
 }
 
 // Dummy data (replace with real data later)
@@ -252,13 +254,22 @@ export default function SponsorPage() {
   const [mode, setMode] = useState<"bug" | "edit">("bug");
   const [query, setQuery] = useState("");
 
+  const [tracks, setTracks] = useState<Track[]>(TRACKS);
+  const [bugs, setBugs] = useState<BugItem[]>(BUGS);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [blobId, setBlobId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const companyTracks = useMemo(
-    () => TRACKS.filter(t => t.companyId === selectedCompanyId),
-    [selectedCompanyId]
+    () => tracks.filter(t => t.companyId === selectedCompanyId),
+    [tracks, selectedCompanyId]
   );
 
   const filteredBugs = useMemo(() => {
-    return BUGS.filter(b => b.companyId === selectedCompanyId)
+    return bugs
+      .filter(b => b.companyId === selectedCompanyId)
       .filter(b =>
         selectedTrackId === "all" ? true : b.trackId === selectedTrackId
       )
@@ -280,8 +291,8 @@ export default function SponsorPage() {
   }, [filteredBugs, selectedBugId]);
 
   const selectedBug = useMemo(
-    () => filteredBugs.find(b => b.id === selectedBugId) ?? null,
-    [filteredBugs, selectedBugId]
+    () => bugs.find(b => b.id === selectedBugId) ?? null,
+    [bugs, selectedBugId]
   );
 
   return (
@@ -363,8 +374,8 @@ export default function SponsorPage() {
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search reported bugs…"
-            className="w-full rounded-lg border border-black/10 dark:border-white/15 bg-background pl-9 pr-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
+            placeholder="Search reported bugs… (or enter Walrus Blob ID)"
+            className="w-full rounded-lg border border-black/10 dark:border-white/15 bg-background pl-9 pr-28 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
           />
           <svg
             width="16"
@@ -380,7 +391,68 @@ export default function SponsorPage() {
               strokeLinecap="round"
             />
           </svg>
+          <button
+            type="button"
+            onClick={async () => {
+              const blob = query.trim();
+              if (!blob) return;
+              try {
+                setIsSearching(true);
+                setSearchError(null);
+                const arr = await downloadBlob(blob);
+                const json = new TextDecoder().decode(arr);
+                const parsed = JSON.parse(json) as Partial<BugItem> & Record<string, unknown>;
+
+                const allowedSeverity = new Set(["low", "medium", "high", "critical"]);
+                const allowedStatus = new Set(["reported", "triaging", "accepted", "rejected"]);
+
+                let trackIdGuess = typeof parsed.trackId === "string" && parsed.trackId
+                  ? parsed.trackId
+                  : (selectedTrackId !== "all" ? selectedTrackId : (companyTracks[0]?.id ?? ""));
+
+                // Ensure track belongs to company
+                const belongs = tracks.some(t => t.id === trackIdGuess && t.companyId === (parsed.companyId as string ?? selectedCompanyId));
+                if (!belongs) {
+                  trackIdGuess = companyTracks[0]?.id ?? trackIdGuess;
+                }
+
+                const bug: BugItem = {
+                  id: typeof parsed.id === "string" && parsed.id ? parsed.id : `b${Date.now()}`,
+                  companyId: typeof parsed.companyId === "string" && parsed.companyId ? parsed.companyId : selectedCompanyId,
+                  trackId: trackIdGuess,
+                  title: typeof parsed.title === "string" && parsed.title ? parsed.title : "(untitled)",
+                  body: typeof parsed.body === "string" ? parsed.body : "",
+                  rewardUsd: typeof parsed.rewardUsd === "number" ? parsed.rewardUsd : 0,
+                  severity: allowedSeverity.has(String(parsed.severity)) ? (parsed.severity as BugItem["severity"]) : "low",
+                  status: allowedStatus.has(String(parsed.status)) ? (parsed.status as BugItem["status"]) : "reported",
+                  unlocked: true,
+                };
+
+                setBugs(prev => {
+                  const exists = prev.some(b => b.id === bug.id);
+                  if (exists) return prev.map(b => (b.id === bug.id ? bug : b));
+                  return [bug, ...prev];
+                });
+                setSelectedCompanyId(bug.companyId);
+                setSelectedTrackId(bug.trackId);
+                setSelectedBugId(bug.id);
+                setMode("bug");
+              } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : "Failed to fetch blob";
+                setSearchError(message);
+              } finally {
+                setIsSearching(false);
+              }
+            }}
+            disabled={isSearching}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-black/10 dark:border-white/15 px-3 py-1.5 text-xs font-medium hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-60"
+          >
+            {isSearching ? "Fetching…" : "Fetch"}
+          </button>
         </div>
+        {searchError && (
+          <p className="text-xs text-rose-400">{searchError}</p>
+        )}
 
         {/* Reported bugs list */}
         <div className="flex-1 min-h-0">
@@ -454,24 +526,41 @@ export default function SponsorPage() {
               </div>
             </header>
 
-            <div className="prose prose-slate dark:prose-invert max-w-none leading-relaxed">
-              <h3 className="mt-6 text-base font-semibold text-foreground/80">
-                Bug write-up
-              </h3>
-              <p className="mt-3 whitespace-pre-wrap text-[15px] md:text-base">
-                {selectedBug.body}
-              </p>
-              <div className="mt-8 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
-                <button className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm font-medium hover:opacity-90 dark:bg-white/10 dark:text-zinc-100">
-                  Accept
-                </button>
-                <button className="rounded-lg bg-rose-500 text-white px-4 py-2 text-sm font-medium hover:opacity-90">
-                  Reject
-                </button>
-                <button className="rounded-lg border border-black/10 dark:border-white/15 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5">
-                  Contact Hacker
-                </button>
+            {selectedBug.unlocked ? (
+              <div className="mt-6">
+                <p className="whitespace-pre-wrap leading-relaxed text-[15px] md:text-base">
+                  {selectedBug.body}
+                </p>
               </div>
+            ) : (
+              <div className="relative mt-6">
+                <div className="filter blur-sm select-none pointer-events-none">
+                  <p className="whitespace-pre-wrap leading-relaxed text-[15px] md:text-base">
+                    {selectedBug.body.repeat(4)}
+                  </p>
+                </div>
+                <div className="absolute inset-0 grid place-items-center">
+                  <div className="rounded-xl bg-background/90 backdrop-blur px-6 py-4 ring-1 ring-black/10 dark:ring-white/10 text-center">
+                    <p className="font-medium">Long description is locked</p>
+                    <p className="text-xs text-foreground/60 mt-1">
+                      Only visible to sponsor triagers. Submit your own report to
+                      participate.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-8 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
+              <button className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm font-medium hover:opacity-90 dark:bg-white/10 dark:text-zinc-100">
+                Accept
+              </button>
+              <button className="rounded-lg bg-rose-500 text-white px-4 py-2 text-sm font-medium hover:opacity-90">
+                Reject
+              </button>
+              <button className="rounded-lg border border-black/10 dark:border-white/15 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5">
+                Contact Hacker
+              </button>
             </div>
           </article>
         )}
@@ -484,16 +573,90 @@ export default function SponsorPage() {
                 Update the short and long description for this bounty track.
               </p>
             </header>
+            {blobId && (
+              <div className="mb-4 rounded-lg border border-black/10 dark:border-white/10 bg-background p-3 text-sm">
+                <span className="font-medium">Walrus Blob ID:</span>{" "}
+                <span className="break-all">{blobId}</span>
+              </div>
+            )}
+            {uploadError && (
+              <div className="mb-4 rounded-lg border border-rose-500/25 bg-rose-500/10 p-3 text-sm text-rose-300">
+                {uploadError}
+              </div>
+            )}
             <form
               className="space-y-5"
               onSubmit={e => {
                 e.preventDefault();
-                setMode("bug");
+                const form = e.currentTarget as HTMLFormElement;
+                const fd = new FormData(form);
+                const title = String(fd.get("title") ?? "").trim();
+                const description = String(fd.get("description") ?? "").trim();
+                if (!title || !description) return;
+                const payload = {
+                  id:
+                    selectedTrackId === "all"
+                      ? `t${Date.now()}`
+                      : selectedTrackId,
+                  companyId: selectedCompanyId,
+                  name: title,
+                  description,
+                };
+
+                (async () => {
+                  try {
+                    setUploading(true);
+                    setUploadError(null);
+                    setBlobId(null);
+                    const res = await uploadBlob(
+                      JSON.stringify(payload),
+                      10,
+                      undefined,
+                      undefined,
+                      "application/json; charset=utf-8"
+                    );
+                    let id: string | null = null;
+                    if (typeof res === "string") {
+                      id = res.trim();
+                    } else if (res && typeof res === "object") {
+                      const o = res as Record<string, unknown>;
+                      const newlyCreated = o["newlyCreated"];
+                      if (newlyCreated && typeof newlyCreated === "object") {
+                        const blobObject = (newlyCreated as Record<string, unknown>)["blobObject"];
+                        if (blobObject && typeof blobObject === "object") {
+                          const inner = (blobObject as Record<string, unknown>)["blobId"];
+                          if (typeof inner === "string") id = inner;
+                        }
+                      }
+                      if (!id) {
+                        const direct = o["blob_id"] ?? o["blobId"] ?? o["id"];
+                        if (typeof direct === "string") id = direct as string;
+                      }
+                    }
+                    if (!id) throw new Error("Upload did not return a blob ID");
+                    setBlobId(id);
+
+                    // If creating a new track, add it locally
+                    setTracks(prev => {
+                      const exists = prev.some(t => t.id === payload.id);
+                      if (exists) return prev.map(t => (t.id === payload.id ? { ...t, name: payload.name } : t));
+                      return [...prev, { id: payload.id, companyId: payload.companyId, name: payload.name }];
+                    });
+                    setSelectedTrackId(payload.id);
+                  } catch (err: unknown) {
+                    const message = err instanceof Error ? err.message : "Failed to store blob";
+                    setUploadError(message);
+                  } finally {
+                    setUploading(false);
+                  }
+                })();
               }}
             >
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Title</label>
                 <input
+                  name="title"
+                  required
                   defaultValue={`${
                     COMPANIES.find(c => c.id === selectedCompanyId)?.name
                   } — ${
@@ -507,6 +670,8 @@ export default function SponsorPage() {
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Long description</label>
                 <textarea
+                  name="description"
+                  required
                   rows={8}
                   defaultValue={
                     "Describe the scope, impact expectations, and out-of-scope areas. Use markdown for clarity."
@@ -517,9 +682,10 @@ export default function SponsorPage() {
               <div className="flex items-center gap-3">
                 <button
                   type="submit"
-                  className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90"
+                  disabled={uploading}
+                  className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-60"
                 >
-                  Save
+                  {uploading ? "Uploading…" : "Save"}
                 </button>
                 <button
                   type="button"

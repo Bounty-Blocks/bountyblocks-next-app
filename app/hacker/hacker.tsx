@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { uploadBlob, downloadBlob } from "../walrus";
 
 // Domain models
 interface Company {
@@ -30,6 +31,7 @@ interface BugItem {
   title: string;
   body: string;
   payoutToken?: string;
+  unlocked?: boolean;
 }
 
 // Dummy seed data
@@ -96,7 +98,7 @@ const INITIAL_BUGS: BugItem[] = [
   },
 ];
 
-const TOKENS: string[] = ["USDC", "USDT", "USDF", "ETH (Wrapped)", "PYUSD"];
+const TOKENS: string[] = ["USDF", "FLOW"];
 
 function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -117,6 +119,11 @@ export default function HackerPage() {
   const [bugs, setBugs] = useState<BugItem[]>(INITIAL_BUGS);
   const [payoutQuery, setPayoutQuery] = useState<string>("");
   const [isPayoutOpen, setIsPayoutOpen] = useState<boolean>(false);
+  const [blobId, setBlobId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const companyTracks = useMemo(
     () => TRACKS.filter(t => t.companyId === companyId),
@@ -146,8 +153,8 @@ export default function HackerPage() {
   );
 
   const selectedBug = useMemo(
-    () => filteredBugs.find(b => b.id === selectedBugId) ?? null,
-    [filteredBugs, selectedBugId]
+    () => bugs.find(b => b.id === selectedBugId) ?? null,
+    [bugs, selectedBugId]
   );
 
   const remaining = Math.max(
@@ -225,8 +232,8 @@ export default function HackerPage() {
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search for a bug…"
-            className="w-full rounded-lg border border-black/10 dark:border-white/15 bg-background pl-9 pr-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
+            placeholder="Search for a bug… (or enter Walrus Blob ID)"
+            className="w-full rounded-lg border border-black/10 dark:border-white/15 bg-background pl-9 pr-28 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
           />
           <svg
             width="16"
@@ -242,7 +249,66 @@ export default function HackerPage() {
               strokeLinecap="round"
             />
           </svg>
+          <button
+            type="button"
+            onClick={async () => {
+              const blob = query.trim();
+              if (!blob) return;
+              try {
+                setIsSearching(true);
+                setSearchError(null);
+                const arr = await downloadBlob(blob);
+                const json = new TextDecoder().decode(arr);
+                const parsed = JSON.parse(json) as Partial<BugItem>;
+                console.log(parsed);
+
+                const bug: BugItem = {
+                  id: typeof parsed.id === "string" && parsed.id ? parsed.id : `b${Date.now()}`,
+                  companyId: typeof parsed.companyId === "string" && parsed.companyId ? parsed.companyId : companyId,
+                  trackId:
+                    typeof parsed.trackId === "string" && parsed.trackId
+                      ? parsed.trackId
+                      : currentTrack?.id ?? "",
+                  title: typeof parsed.title === "string" && parsed.title ? parsed.title : "(untitled)",
+                  body: typeof parsed.body === "string" ? parsed.body : "",
+                  payoutToken: typeof parsed.payoutToken === "string" ? parsed.payoutToken : undefined,
+                  unlocked: true,
+                };
+
+                // Ensure track belongs to selected company; if not, try to fix
+                const trackBelongs = TRACKS.some(t => t.id === bug.trackId && t.companyId === bug.companyId);
+                if (!trackBelongs) {
+                  const firstForCompany = TRACKS.find(t => t.companyId === bug.companyId)?.id ?? bug.trackId;
+                  bug.trackId = firstForCompany;
+                }
+
+                // Insert or update bug
+                setBugs(prev => {
+                  const exists = prev.some(b => b.id === bug.id);
+                  if (exists) return prev.map(b => (b.id === bug.id ? bug : b));
+                  return [bug, ...prev];
+                });
+
+                setCompanyId(bug.companyId);
+                setTrackId(bug.trackId);
+                setSelectedBugId(bug.id);
+                setMode("bug");
+              } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : "Failed to fetch blob";
+                setSearchError(message);
+              } finally {
+                setIsSearching(false);
+              }
+            }}
+            disabled={isSearching}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-black/10 dark:border-white/15 px-3 py-1.5 text-xs font-medium hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-60"
+          >
+            {isSearching ? "Fetching…" : "Fetch"}
+          </button>
         </div>
+        {searchError && (
+          <p className="text-xs text-rose-400">{searchError}</p>
+        )}
 
         {/* Bugs list */}
         <div className="flex-1 min-h-0 overflow-hidden">
@@ -362,22 +428,30 @@ export default function HackerPage() {
                 {selectedBug.title}
               </h2>
             </header>
-            <div className="relative mt-6">
-              <div className="filter blur-sm select-none pointer-events-none">
+            {selectedBug.unlocked ? (
+              <div className="mt-6">
                 <p className="whitespace-pre-wrap leading-relaxed text-[15px] md:text-base">
-                  {selectedBug.body.repeat(4)}
+                  {selectedBug.body}
                 </p>
               </div>
-              <div className="absolute inset-0 grid place-items-center">
-                <div className="rounded-xl bg-background/90 backdrop-blur px-6 py-4 ring-1 ring-black/10 dark:ring-white/10 text-center">
-                  <p className="font-medium">Long description is locked</p>
-                  <p className="text-xs text-foreground/60 mt-1">
-                    Only visible to sponsor triagers. Submit your own report to
-                    participate.
+            ) : (
+              <div className="relative mt-6">
+                <div className="filter blur-sm select-none pointer-events-none">
+                  <p className="whitespace-pre-wrap leading-relaxed text-[15px] md:text-base">
+                    {selectedBug.body.repeat(4)}
                   </p>
                 </div>
+                <div className="absolute inset-0 grid place-items-center">
+                  <div className="rounded-xl bg-background/90 backdrop-blur px-6 py-4 ring-1 ring-black/10 dark:ring-white/10 text-center">
+                    <p className="font-medium">Long description is locked</p>
+                    <p className="text-xs text-foreground/60 mt-1">
+                      Only visible to sponsor triagers. Submit your own report to
+                      participate.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </article>
         )}
 
@@ -389,6 +463,17 @@ export default function HackerPage() {
                 Provide a concise summary and a detailed write-up.
               </p>
             </header>
+            {blobId && (
+              <div className="mb-4 rounded-lg border border-black/10 dark:border-white/10 bg-background p-3 text-sm">
+                <span className="font-medium">Walrus Blob ID:</span>{" "}
+                <span className="break-all">{blobId}</span>
+              </div>
+            )}
+            {uploadError && (
+              <div className="mb-4 rounded-lg border border-rose-500/25 bg-rose-500/10 p-3 text-sm text-rose-300">
+                {uploadError}
+              </div>
+            )}
             <form
               onSubmit={e => {
                 e.preventDefault();
@@ -402,11 +487,54 @@ export default function HackerPage() {
                   body: String(fd.get("body")),
                   payoutToken: payoutQuery || undefined,
                 };
+
+                const jsonString = JSON.stringify(newBug);
+                (async () => {
+                  try {
+                    setUploading(true);
+                    setUploadError(null);
+                    setBlobId(null);
+                    const result = await uploadBlob(
+                      jsonString,
+                      10,
+                      undefined,
+                      undefined,
+                      "application/json; charset=utf-8"
+                    );
+                    let id: string | null = null;
+                    if (typeof result === "string") {
+                      id = result.trim();
+                    } else if (result && typeof result === "object") {
+                      const o = result as Record<string, unknown>;
+                      // Prefer nested blobId if present, else fallback to direct fields
+                      const newlyCreated = o["newlyCreated"];
+                      if (newlyCreated && typeof newlyCreated === "object") {
+                        const blobObject = (newlyCreated as Record<string, unknown>)["blobObject"];
+                        if (blobObject && typeof blobObject === "object") {
+                          const inner = (blobObject as Record<string, unknown>)["blobId"];
+                          if (typeof inner === "string") id = inner;
+                        }
+                      }
+                      if (!id) {
+                        const direct = (o["blob_id"] ?? o["blobId"] ?? o["id"]);
+                        if (typeof direct === "string") id = direct;
+                      }
+                    }
+                    if (!id) throw new Error("Upload did not return a blob ID");
+                    setBlobId(id);
+                  } catch (err: unknown) {
+                    const message = err instanceof Error ? err.message : "Failed to store blob";
+                    setUploadError(message);
+                  } finally {
+                    setUploading(false);
+                  }
+                })();
+
                 setBugs(prev => [newBug, ...prev]);
                 setCompanyId(newBug.companyId);
                 setTrackId(newBug.trackId);
                 setSelectedBugId(newBug.id);
-                setMode("bug");
+                // Keep the user on the submit page so the blob ID is visible
               }}
               className="space-y-5"
             >
@@ -514,9 +642,10 @@ export default function HackerPage() {
               <div className="flex items-center gap-3">
                 <button
                   type="submit"
-                  className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90"
+                  disabled={uploading}
+                  className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-60"
                 >
-                  Submit
+                  {uploading ? "Uploading…" : "Submit"}
                 </button>
                 <button
                   type="button"

@@ -1,5 +1,8 @@
 import * as fcl from "@onflow/fcl";
-import flowJSON from "@/flow.json";
+
+const BOUNTY_ADDRESS = "0xfd10193274953e83";
+const FLOW_TOKEN_ADDRESS = "0x1654653399040a61";
+const FUNGIBLE_TOKEN_ADDRESS = "0x9a0766d93b6608b7";
 
 // Minimal config (Testnet example). Swap to mainnet as needed.
 fcl
@@ -15,8 +18,10 @@ fcl
     "Secure, private, and transparent bug bounty platform"
   )
   .put("app.detail.url", "https://github.com/orgs/Bounty-Blocks")
-  .put("0xFlowToken", "0x7e60df042a9c0868")
-  .load({ flowJSON });
+  .put("FlowToken", FLOW_TOKEN_ADDRESS)
+  .put("Bounty", BOUNTY_ADDRESS)
+  .put("FungibleToken", FUNGIBLE_TOKEN_ADDRESS)
+
 
 export { fcl };
 
@@ -81,7 +86,7 @@ export async function callCadenceTransactionWithPrepare() {
   return transaction;
 }
 
-const BOUNTY_ADDRESS = "0xfd10193274953e83";
+
 
 
 export const FLOW_COMPANY_SIGNUP_TXN = `
